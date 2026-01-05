@@ -1,0 +1,29 @@
+# Build outputs
+build/
+out/
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Gradle
+.gradle/
+
+# Logs
+*.log
+
+# Misc
+README.md
+HELP.md
+
