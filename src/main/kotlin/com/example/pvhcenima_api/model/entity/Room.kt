@@ -1,6 +1,7 @@
 package com.example.pvhcenima_api.model.entity
 
 import jakarta.persistence.*
+import java.math.BigDecimal
 import java.util.*
 
 @Entity
@@ -14,9 +15,12 @@ data class Room(
     @Column(name = "room_name", nullable = false)
     val roomName: String,
 
+    @Column(name = "price", nullable = false, precision = 10, scale = 2)
+    val price: BigDecimal = BigDecimal.ZERO,
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "house_id", nullable = false)
-    val house: House,
+    @JoinColumn(name = "floor_id", nullable = false)
+    val floor: Floor,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "renter_id")

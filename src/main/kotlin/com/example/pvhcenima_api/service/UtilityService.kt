@@ -24,8 +24,8 @@ interface UtilityService {
     // Get utilities by room
     fun getUtilitiesByRoom(roomId: UUID): List<UtilityResponse>
     
-    // Get utilities by house
-    fun getUtilitiesByHouse(houseId: UUID): List<UtilityResponse>
+    // Get utilities by house (optionally filtered by month)
+    fun getUtilitiesByHouse(houseId: UUID, month: LocalDate? = null): List<UtilityResponse>
     
     // Get unpaid utilities for a room
     fun getUnpaidUtilities(roomId: UUID): List<UtilityResponse>

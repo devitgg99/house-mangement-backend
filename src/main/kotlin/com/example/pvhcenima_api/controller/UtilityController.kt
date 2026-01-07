@@ -4,19 +4,25 @@ import com.example.pvhcenima_api.model.request.CreateUtilityRequest
 import com.example.pvhcenima_api.model.request.MarkPaidRequest
 import com.example.pvhcenima_api.model.response.BaseResponse
 import com.example.pvhcenima_api.model.response.UtilityResponse
+import com.example.pvhcenima_api.service.UtilityPdfService
 import com.example.pvhcenima_api.service.UtilityService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import org.springframework.format.annotation.DateTimeFormat
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 @RestController
 @RequestMapping("/api/v1/utility")
 @SecurityRequirement(name = "Bearer Authentication")
 class UtilityController(
-    private val utilityService: UtilityService
+    private val utilityService: UtilityService,
+    private val utilityPdfService: UtilityPdfService
 ) {
 
     @PostMapping
@@ -69,9 +75,12 @@ class UtilityController(
     }
 
     @GetMapping("/house/{houseId}")
-    @Operation(summary = "Get utilities by house")
-    fun getUtilitiesByHouse(@PathVariable houseId: UUID): BaseResponse<List<UtilityResponse>> {
-        return BaseResponse.success(utilityService.getUtilitiesByHouse(houseId), "Utilities retrieved successfully")
+    @Operation(summary = "Get utilities by house (optional month filter)")
+    fun getUtilitiesByHouse(
+        @PathVariable houseId: UUID,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) month: LocalDate?
+    ): BaseResponse<List<UtilityResponse>> {
+        return BaseResponse.success(utilityService.getUtilitiesByHouse(houseId, month), "Utilities retrieved successfully")
     }
 
     @GetMapping("/room/{roomId}/unpaid")
@@ -86,6 +95,28 @@ class UtilityController(
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) month: LocalDate
     ): BaseResponse<List<UtilityResponse>> {
         return BaseResponse.success(utilityService.getUtilitiesByMonth(month), "Utilities retrieved successfully")
+    }
+
+    // ==================== PDF Export ====================
+
+    @GetMapping("/house/{houseId}/pdf")
+    @Operation(summary = "Download utility report as PDF (optional month filter)")
+    fun downloadUtilityPdf(
+        @PathVariable houseId: UUID,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) month: LocalDate?
+    ): ResponseEntity<ByteArray> {
+        val pdfBytes = utilityPdfService.generateUtilityReport(houseId, month)
+        
+        val filename = if (month != null) {
+            "utility-report-${month.format(DateTimeFormatter.ofPattern("yyyy-MM"))}.pdf"
+        } else {
+            "utility-report-all.pdf"
+        }
+        
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=$filename")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(pdfBytes)
     }
 }
 

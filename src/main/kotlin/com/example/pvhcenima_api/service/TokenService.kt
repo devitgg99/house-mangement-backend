@@ -1,6 +1,7 @@
 package com.example.pvhcenima_api.service
 
 import com.example.pvhcenima_api.config.JwtProperties
+import com.example.pvhcenima_api.model.entity.Role
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
@@ -17,6 +18,7 @@ class TokenService(
 
     // Generate token with user ID stored in claims
     fun generate(
+        role: Role,
         userDetails: UserDetails,
         userId: UUID,
         expirationDate: Date,
@@ -24,7 +26,7 @@ class TokenService(
     ): String {
         val claims = additionalClaims.toMutableMap()
         claims["userId"] = userId.toString()  // Store userId in token
-        
+        claims["role"] = role.name
         return Jwts.builder()
             .setSubject(userDetails.username)
             .setIssuedAt(Date(System.currentTimeMillis()))

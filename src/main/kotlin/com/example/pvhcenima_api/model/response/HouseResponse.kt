@@ -7,4 +7,7 @@ data class HouseResponse(
     val houseName: String,
     val houseAddress: String,
     val houseImage: String?,
+    val totalFloors: Long = 0,
+    val totalRooms: Long = 0,
+    val floors: List<FloorSummary> = emptyList()
 )

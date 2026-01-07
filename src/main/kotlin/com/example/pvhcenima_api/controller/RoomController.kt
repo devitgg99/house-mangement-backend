@@ -16,7 +16,7 @@ class RoomController(
     private val roomService: RoomService
 ) {
     @PostMapping
-    @Operation(summary = "Add a new room to a house")
+    @Operation(summary = "Add a new room to a floor")
     fun addRoom(@RequestBody request: RoomRequest): BaseResponse<RoomResponse> {
         return BaseResponse.success(roomService.addRoom(request), "Room added successfully")
     }
@@ -54,6 +54,12 @@ class RoomController(
     @Operation(summary = "Get all rooms in a specific house")
     fun getRoomsByHouse(@PathVariable houseId: UUID): BaseResponse<List<RoomResponse>> {
         return BaseResponse.success(roomService.getRoomsByHouse(houseId), "Rooms retrieved successfully")
+    }
+
+    @GetMapping("/floor/{floorId}")
+    @Operation(summary = "Get all rooms on a specific floor")
+    fun getRoomsByFloor(@PathVariable floorId: UUID): BaseResponse<List<RoomResponse>> {
+        return BaseResponse.success(roomService.getRoomsByFloor(floorId), "Rooms retrieved successfully")
     }
 
     @GetMapping("/house/{houseId}/available")

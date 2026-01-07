@@ -27,7 +27,7 @@ class UtilityServiceImplement(
         utilityId = this.utilityId,
         roomId = this.room.roomId,
         roomName = this.room.roomName,
-        houseName = this.room.house.houseName,
+        houseName = this.room.floor.house.houseName,
         paid = this.isPay,
         oldWater = this.oldWater,
         newWater = this.newWater,
@@ -43,7 +43,7 @@ class UtilityServiceImplement(
             .orElseThrow { IllegalArgumentException("Room not found") }
 
         val currentUserId = currentUserService.getCurrentUserId()
-        if (room.house.owner.userId != currentUserId) {
+        if (room.floor.house.owner.userId != currentUserId) {
             throw IllegalArgumentException("You don't own this room")
         }
     }
@@ -53,7 +53,7 @@ class UtilityServiceImplement(
             .orElseThrow { IllegalArgumentException("Utility not found") }
 
         val currentUserId = currentUserService.getCurrentUserId()
-        if (utility.room.house.owner.userId != currentUserId) {
+        if (utility.room.floor.house.owner.userId != currentUserId) {
             throw IllegalArgumentException("You don't have permission to manage this utility")
         }
         return utility
@@ -98,16 +98,17 @@ class UtilityServiceImplement(
             throw IllegalArgumentException("New water (${request.newWater}) cannot be less than previous reading ($oldWater)")
         }
 
-        // Calculate costs
+        // Calculate costs - use room's price
+        val roomCost = room.price
         val waterCost = calculateWaterCost(oldWater, request.newWater)
-        val totalCost = request.roomCost.add(waterCost)
+        val totalCost = roomCost.add(waterCost)
 
         val utility = utilityRepository.save(
             Utility(
                 room = room,
                 oldWater = oldWater,
                 newWater = request.newWater,
-                roomCost = request.roomCost,
+                roomCost = roomCost,
                 waterCost = waterCost,
                 totalCost = totalCost,
                 month = request.month
@@ -150,15 +151,19 @@ class UtilityServiceImplement(
 
     override fun getMyUtilities(): List<UtilityResponse> {
         val ownerId = currentUserService.getCurrentUserId()
-        return utilityRepository.findAllByRoomHouseOwnerUserId(ownerId).map { it.toResponse() }
+        return utilityRepository.findAllByRoomFloorHouseOwnerUserId(ownerId).map { it.toResponse() }
     }
 
     override fun getUtilitiesByRoom(roomId: UUID): List<UtilityResponse> {
         return utilityRepository.findAllByRoomRoomId(roomId).map { it.toResponse() }
     }
 
-    override fun getUtilitiesByHouse(houseId: UUID): List<UtilityResponse> {
-        return utilityRepository.findAllByRoomHouseHouseId(houseId).map { it.toResponse() }
+    override fun getUtilitiesByHouse(houseId: UUID, month: LocalDate?): List<UtilityResponse> {
+        return if (month != null) {
+            utilityRepository.findAllByRoomFloorHouseHouseIdAndMonth(houseId, month).map { it.toResponse() }
+        } else {
+            utilityRepository.findAllByRoomFloorHouseHouseId(houseId).map { it.toResponse() }
+        }
     }
 
     override fun getUnpaidUtilities(roomId: UUID): List<UtilityResponse> {

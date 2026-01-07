@@ -16,6 +16,9 @@ interface RoomService {
     // Get rooms by house
     fun getRoomsByHouse(houseId: UUID): List<RoomResponse>
 
+    // Get rooms by floor
+    fun getRoomsByFloor(floorId: UUID): List<RoomResponse>
+
     // Get available rooms in a house
     fun getAvailableRooms(houseId: UUID): List<RoomResponse>
 

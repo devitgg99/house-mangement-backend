@@ -24,23 +24,23 @@ class AuthServiceImplement(
     private val tokenService: TokenService,
     private val jwtProperties: JwtProperties
 ) : AuthService {
-    
+
     override fun register(userRequest: UserRequest) {
         // Prevent self-registration as ADMIN
         if (userRequest.role == Role.ADMIN) {
             throw IllegalArgumentException("Cannot register as ADMIN")
         }
-        
+
         // Check for duplicate email
         if (userRepository.existsByEmail(userRequest.email)) {
             throw IllegalArgumentException("Email already exists")
         }
-        
+
         // Check for duplicate phone number
         if (userRepository.existsByPhoneNumber(userRequest.phoneNumber)) {
             throw IllegalArgumentException("Phone number already exists")
         }
-        
+
         val user = User(
             fullName = userRequest.fullName,
             password = passwordEncoder.encode(userRequest.password)!!,
@@ -64,6 +64,7 @@ class AuthServiceImplement(
         val userDetails = userDetailsService.loadUserByUsername(userRequest.emailOrPhonenumber)
 
         val accessToken = tokenService.generate(
+            userEntity.role,
             userDetails = userDetails,
             userId = userEntity.userId!!,  // Include userId in token
             expirationDate = Date(System.currentTimeMillis() + jwtProperties.accessTokenExpiration)

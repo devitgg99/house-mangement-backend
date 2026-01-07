@@ -1,6 +1,5 @@
 package com.example.pvhcenima_api.model.request
 
-import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.*
 
@@ -8,10 +7,10 @@ import java.util.*
 data class CreateUtilityRequest(
     val roomId: UUID,
     val newWater: Double,              // Current meter reading
-    val roomCost: BigDecimal,
     val month: LocalDate,
     val oldWater: Double? = null       // Optional: only for FIRST record of new room
 )
+// Room price is automatically fetched from Room entity
 // If oldWater is null → auto-fetch from previous record (or 0 if truly first)
 // If oldWater is provided → use it (for new room with existing meter reading)
 
