@@ -56,7 +56,8 @@ class SecurityConfiguration(
                 "http://localhost:3000",    // React dev
                 "http://localhost:5173",    // Vite dev
                 "http://localhost:8081", // Other frontend
-                "http://192.168.0.250:3000"
+                "http://192.168.0.250:3000",
+                "https://*.ts.net"
                 // "https://your-production-domain.com"  // Production
             )
             // Or allow all origins (less secure, use for development only)
