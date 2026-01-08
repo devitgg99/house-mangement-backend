@@ -51,23 +51,19 @@ class SecurityConfiguration(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration().apply {
-            // Allow these origins (add your frontend URLs)
-            allowedOrigins = listOf(
-                "http://localhost:3000",    // React dev
-                "http://localhost:5173",    // Vite dev
-                "http://localhost:8081", // Other frontend
-                "http://192.168.0.250:3000",
-                "https://*.ts.net"
-                // "https://your-production-domain.com"  // Production
+            // Use allowedOriginPatterns for wildcard support
+            allowedOriginPatterns = listOf(
+                "http://localhost:*",           // All localhost ports
+                "http://192.168.*.*:*",         // Local network
+                "https://*.ts.net",             // Tailscale
+                "https://*.vercel.app"          // Vercel deployments
             )
-            // Or allow all origins (less secure, use for development only)
-            // allowedOriginPatterns = listOf("*")
 
             allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             exposedHeaders = listOf("Authorization", "Content-Type")
             allowCredentials = true
-            maxAge = 3600L  // Cache preflight for 1 hour
+            maxAge = 3600L
         }
 
         return UrlBasedCorsConfigurationSource().apply {
