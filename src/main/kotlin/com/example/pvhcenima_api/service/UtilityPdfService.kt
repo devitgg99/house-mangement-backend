@@ -7,10 +7,13 @@ import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
-import org.apache.pdfbox.pdmodel.font.PDType0Font
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Service
 import java.awt.Color
+import java.awt.Font
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -23,6 +26,7 @@ class UtilityPdfService(
     private val houseRepository: HouseRepository
 ) {
     private val khmerFontPath = "fonts/NotoSansKhmer-Regular.ttf"
+    private var cachedFont: Font? = null
 
     fun generateUtilityReport(houseId: UUID, month: LocalDate?, lang: PdfLanguage = PdfLanguage.EN): ByteArray {
         val house = houseRepository.findById(houseId)
@@ -49,166 +53,143 @@ class UtilityPdfService(
             }
         }
 
+        // Create image using Java2D (supports complex scripts like Khmer)
+        val imgWidth = 595 * 2  // A4 width at 144 DPI
+        val imgHeight = 842 * 2 // A4 height at 144 DPI
+        val image = BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_INT_RGB)
+        val g2d = image.createGraphics()
+
+        // Enable anti-aliasing for better text rendering
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON)
+
+        // White background
+        g2d.color = Color.WHITE
+        g2d.fillRect(0, 0, imgWidth, imgHeight)
+
+        // Load font
+        val baseFont = getFont(lang)
+        val scale = 2f // For high DPI
+        var y = 80f * scale
+
+        // Title
+        g2d.font = baseFont.deriveFont(Font.BOLD, 24f * scale)
+        g2d.color = Color(66, 133, 244)
+        val title = t("title")
+        val titleWidth = g2d.fontMetrics.stringWidth(title)
+        g2d.drawString(title, (imgWidth - titleWidth) / 2, y.toInt())
+        y += 60f * scale
+
+        // House info
+        g2d.color = Color.BLACK
+        g2d.font = baseFont.deriveFont(Font.BOLD, 16f * scale)
+        g2d.drawString("${t("house")}: ${house.houseName}", (50 * scale).toInt(), y.toInt())
+        y += 30f * scale
+
+        g2d.font = baseFont.deriveFont(Font.PLAIN, 13f * scale)
+        g2d.drawString("${t("address")}: ${house.houseAddress}", (50 * scale).toInt(), y.toInt())
+        y += 25f * scale
+
+        val monthText = if (month != null) {
+            "${t("month")}: ${month.format(DateTimeFormatter.ofPattern("MM/yyyy"))}"
+        } else {
+            t("all_records")
+        }
+        g2d.drawString(monthText, (50 * scale).toInt(), y.toInt())
+        y += 25f * scale
+
+        g2d.drawString("${t("generated")}: ${LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}", (50 * scale).toInt(), y.toInt())
+        y += 40f * scale
+
+        // Table
+        val colWidths = floatArrayOf(100f, 70f, 65f, 65f, 80f, 80f, 80f).map { it * scale }
+        val headers = listOf(t("room"), t("month"), t("old_water"), t("new_water"), t("room_cost"), t("water_cost"), t("total"))
+        val tableX = 50f * scale
+        val rowHeight = 28f * scale
+
+        // Header background
+        g2d.color = Color(66, 133, 244)
+        g2d.fillRect(tableX.toInt(), (y - rowHeight + 8 * scale).toInt(), colWidths.sum().toInt(), rowHeight.toInt())
+
+        // Header text
+        g2d.color = Color.WHITE
+        g2d.font = baseFont.deriveFont(Font.BOLD, 11f * scale)
+        var x = tableX + 5 * scale
+        headers.forEachIndexed { index, header ->
+            g2d.drawString(header, x.toInt(), y.toInt())
+            x += colWidths[index]
+        }
+        y += rowHeight
+
+        // Data rows
+        g2d.font = baseFont.deriveFont(Font.PLAIN, 11f * scale)
+        if (utilities.isEmpty()) {
+            g2d.color = Color.GRAY
+            g2d.drawString(t("no_records"), (tableX + 5 * scale).toInt(), y.toInt())
+            y += rowHeight
+        } else {
+            utilities.sortedBy { it.month }.forEach { utility ->
+                val bgColor = if (utility.paid) Color(240, 255, 240) else Color(255, 240, 240)
+                val totalColor = if (utility.paid) Color(34, 139, 34) else Color(220, 20, 60)
+
+                // Row background
+                g2d.color = bgColor
+                g2d.fillRect(tableX.toInt(), (y - rowHeight + 8 * scale).toInt(), colWidths.sum().toInt(), rowHeight.toInt())
+
+                // Row data
+                val rowData = listOf(
+                    utility.roomName,
+                    utility.month.format(DateTimeFormatter.ofPattern("MM/yyyy")),
+                    String.format("%.1f", utility.oldWater),
+                    String.format("%.1f", utility.newWater),
+                    formatCurrency(utility.roomCost),
+                    formatCurrency(utility.waterCost),
+                    formatCurrency(utility.totalCost)
+                )
+
+                x = tableX + 5 * scale
+                rowData.forEachIndexed { index, text ->
+                    g2d.color = if (index == rowData.lastIndex) totalColor else Color.BLACK
+                    g2d.drawString(text, x.toInt(), y.toInt())
+                    x += colWidths[index]
+                }
+                y += rowHeight
+            }
+        }
+        y += 20f * scale
+
+        // Summary
+        g2d.color = Color.BLACK
+        g2d.font = baseFont.deriveFont(Font.BOLD, 16f * scale)
+        g2d.drawString(t("summary"), (50 * scale).toInt(), y.toInt())
+        y += 30f * scale
+
+        g2d.font = baseFont.deriveFont(Font.PLAIN, 13f * scale)
+        listOf(
+            "${t("total_records")}: ${utilities.size}",
+            "${t("paid")}: $paidCount (${formatCurrency(paidTotal)})",
+            "${t("unpaid")}: $unpaidCount (${formatCurrency(unpaidTotal)})"
+        ).forEach { line ->
+            g2d.drawString(line, (50 * scale).toInt(), y.toInt())
+            y += 25f * scale
+        }
+
+        // Grand total
+        g2d.font = baseFont.deriveFont(Font.BOLD, 14f * scale)
+        g2d.drawString("${t("grand_total")}: ${formatCurrency(grandTotal)}", (50 * scale).toInt(), y.toInt())
+
+        g2d.dispose()
+
+        // Convert image to PDF
         val outputStream = ByteArrayOutputStream()
         PDDocument().use { document ->
             val page = PDPage(PDRectangle.A4)
             document.addPage(page)
 
-            // Load font
-            val font = if (lang == PdfLanguage.KH) {
-                loadKhmerFont(document) ?: PDType0Font.load(document, 
-                    ClassPathResource("fonts/NotoSansKhmer-Regular.ttf").inputStream)
-            } else {
-                PDType0Font.load(document, 
-                    ClassPathResource("fonts/NotoSansKhmer-Regular.ttf").inputStream)
-            }
-
+            val pdImage = LosslessFactory.createFromImage(document, image)
             PDPageContentStream(document, page).use { content ->
-                val pageWidth = page.mediaBox.width
-                val pageHeight = page.mediaBox.height
-                var y = pageHeight - 50f
-
-                // Title
-                content.setFont(font, 18f)
-                content.setNonStrokingColor(Color(66, 133, 244))
-                val titleWidth = font.getStringWidth(t("title")) / 1000 * 18
-                content.beginText()
-                content.newLineAtOffset((pageWidth - titleWidth) / 2, y)
-                content.showText(t("title"))
-                content.endText()
-                y -= 40f
-
-                // House info
-                content.setNonStrokingColor(Color.BLACK)
-                content.setFont(font, 14f)
-                content.beginText()
-                content.newLineAtOffset(50f, y)
-                content.showText("${t("house")}: ${house.houseName}")
-                content.endText()
-                y -= 20f
-
-                content.setFont(font, 11f)
-                content.beginText()
-                content.newLineAtOffset(50f, y)
-                content.showText("${t("address")}: ${house.houseAddress}")
-                content.endText()
-                y -= 18f
-
-                val monthText = if (month != null) {
-                    "${t("month")}: ${month.format(DateTimeFormatter.ofPattern("MM/yyyy"))}"
-                } else {
-                    t("all_records")
-                }
-                content.beginText()
-                content.newLineAtOffset(50f, y)
-                content.showText(monthText)
-                content.endText()
-                y -= 18f
-
-                content.beginText()
-                content.newLineAtOffset(50f, y)
-                content.showText("${t("generated")}: ${LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))}")
-                content.endText()
-                y -= 30f
-
-                // Table header
-                val colWidths = floatArrayOf(90f, 60f, 55f, 55f, 70f, 70f, 70f)
-                val headers = listOf(t("room"), t("month"), t("old_water"), t("new_water"), t("room_cost"), t("water_cost"), t("total"))
-                
-                // Draw header background
-                content.setNonStrokingColor(Color(66, 133, 244))
-                content.addRect(50f, y - 5f, colWidths.sum(), 22f)
-                content.fill()
-
-                // Draw header text
-                content.setNonStrokingColor(Color.WHITE)
-                content.setFont(font, 9f)
-                var x = 55f
-                headers.forEachIndexed { index, header ->
-                    content.beginText()
-                    content.newLineAtOffset(x, y + 3f)
-                    content.showText(header)
-                    content.endText()
-                    x += colWidths[index]
-                }
-                y -= 25f
-
-                // Draw data rows
-                content.setFont(font, 9f)
-                if (utilities.isEmpty()) {
-                    content.setNonStrokingColor(Color.GRAY)
-                    content.beginText()
-                    content.newLineAtOffset(50f, y)
-                    content.showText(t("no_records"))
-                    content.endText()
-                    y -= 20f
-                } else {
-                    utilities.sortedBy { it.month }.forEach { utility ->
-                        val bgColor = if (utility.paid) Color(240, 255, 240) else Color(255, 240, 240)
-                        val textColor = if (utility.paid) Color(34, 139, 34) else Color(220, 20, 60)
-
-                        // Row background
-                        content.setNonStrokingColor(bgColor)
-                        content.addRect(50f, y - 5f, colWidths.sum(), 18f)
-                        content.fill()
-
-                        // Row data
-                        content.setNonStrokingColor(Color.BLACK)
-                        x = 55f
-                        val rowData = listOf(
-                            utility.roomName,
-                            utility.month.format(DateTimeFormatter.ofPattern("MM/yyyy")),
-                            String.format("%.1f", utility.oldWater),
-                            String.format("%.1f", utility.newWater),
-                            formatCurrency(utility.roomCost),
-                            formatCurrency(utility.waterCost),
-                            formatCurrency(utility.totalCost)
-                        )
-
-                        rowData.forEachIndexed { index, text ->
-                            if (index == rowData.lastIndex) {
-                                content.setNonStrokingColor(textColor)
-                            }
-                            content.beginText()
-                            content.newLineAtOffset(x, y)
-                            content.showText(text)
-                            content.endText()
-                            x += colWidths[index]
-                        }
-                        content.setNonStrokingColor(Color.BLACK)
-                        y -= 18f
-                    }
-                }
-                y -= 15f
-
-                // Summary
-                content.setFont(font, 14f)
-                content.beginText()
-                content.newLineAtOffset(50f, y)
-                content.showText(t("summary"))
-                content.endText()
-                y -= 20f
-
-                content.setFont(font, 11f)
-                val summaryLines = listOf(
-                    "${t("total_records")}: ${utilities.size}",
-                    "${t("paid")}: $paidCount (${formatCurrency(paidTotal)})",
-                    "${t("unpaid")}: $unpaidCount (${formatCurrency(unpaidTotal)})"
-                )
-                summaryLines.forEach { line ->
-                    content.beginText()
-                    content.newLineAtOffset(50f, y)
-                    content.showText(line)
-                    content.endText()
-                    y -= 18f
-                }
-
-                // Grand total
-                content.setFont(font, 12f)
-                content.beginText()
-                content.newLineAtOffset(50f, y)
-                content.showText("${t("grand_total")}: ${formatCurrency(grandTotal)}")
-                content.endText()
+                content.drawImage(pdImage, 0f, 0f, PDRectangle.A4.width, PDRectangle.A4.height)
             }
 
             document.save(outputStream)
@@ -217,16 +198,25 @@ class UtilityPdfService(
         return outputStream.toByteArray()
     }
 
-    private fun loadKhmerFont(document: PDDocument): PDType0Font? {
-        return try {
+    private fun getFont(lang: PdfLanguage): Font {
+        // For Khmer, we MUST use the Khmer font
+        // For English, we can use the Khmer font too (it has Latin characters)
+        cachedFont?.let { return it }
+
+        val font = try {
             val fontResource = ClassPathResource(khmerFontPath)
             if (fontResource.exists()) {
-                PDType0Font.load(document, fontResource.inputStream)
-            } else null
+                Font.createFont(Font.TRUETYPE_FONT, fontResource.inputStream)
+            } else {
+                Font("SansSerif", Font.PLAIN, 12)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            null
+            Font("SansSerif", Font.PLAIN, 12)
         }
+
+        cachedFont = font
+        return font
     }
 
     private fun formatCurrency(amount: BigDecimal): String {

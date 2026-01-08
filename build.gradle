@@ -55,9 +55,8 @@ dependencies {
     // MapStruct Processor (handled by KAPT)
     kapt 'org.mapstruct:mapstruct-processor:1.6.3'
 
-    // PDF Generation (Apache PDFBox with ICU4J for complex text shaping)
+    // PDF Generation (Apache PDFBox)
     implementation 'org.apache.pdfbox:pdfbox:3.0.2'
-    implementation 'com.ibm.icu:icu4j:74.2'
 }
 
 kotlin {
