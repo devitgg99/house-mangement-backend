@@ -1,5 +1,6 @@
 package com.example.pvhcenima_api.controller
 
+import com.example.pvhcenima_api.model.PdfLanguage
 import com.example.pvhcenima_api.model.request.CreateUtilityRequest
 import com.example.pvhcenima_api.model.request.MarkPaidRequest
 import com.example.pvhcenima_api.model.response.BaseResponse
@@ -100,12 +101,14 @@ class UtilityController(
     // ==================== PDF Export ====================
 
     @GetMapping("/house/{houseId}/pdf")
-    @Operation(summary = "Download utility report as PDF (optional month filter)")
+    @Operation(summary = "Download utility report as PDF (optional month filter, lang: en/kh)")
     fun downloadUtilityPdf(
         @PathVariable houseId: UUID,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) month: LocalDate?
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) month: LocalDate?,
+        @RequestParam(required = false, defaultValue = "en") lang: String
     ): ResponseEntity<ByteArray> {
-        val pdfBytes = utilityPdfService.generateUtilityReport(houseId, month)
+        val language = PdfLanguage.fromCode(lang)
+        val pdfBytes = utilityPdfService.generateUtilityReport(houseId, month, language)
         
         val filename = if (month != null) {
             "utility-report-${month.format(DateTimeFormatter.ofPattern("yyyy-MM"))}.pdf"
