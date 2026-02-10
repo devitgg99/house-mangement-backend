@@ -27,6 +27,7 @@ class UtilityServiceImplement(
         utilityId = this.utilityId,
         roomId = this.room.roomId,
         roomName = this.room.roomName,
+        floorName = this.room.floor.floorName ?: "Floor ${this.room.floor.floorNumber}",
         houseName = this.room.floor.house.houseName,
         paid = this.isPay,
         oldWater = this.oldWater,

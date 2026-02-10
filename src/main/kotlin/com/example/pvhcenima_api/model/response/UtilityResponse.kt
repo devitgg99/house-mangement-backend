@@ -9,6 +9,7 @@ data class UtilityResponse(
     val utilityId: UUID?,
     val roomId: UUID?,
     val roomName: String,
+    val floorName: String,
     val houseName: String,
     @get:JsonProperty("isPay")
     val paid: Boolean,

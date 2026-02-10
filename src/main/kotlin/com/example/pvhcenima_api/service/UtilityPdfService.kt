@@ -103,8 +103,8 @@ class UtilityPdfService(
         y += 40f * scale
 
         // Table
-        val colWidths = floatArrayOf(100f, 70f, 65f, 65f, 80f, 80f, 80f).map { it * scale }
-        val headers = listOf(t("room"), t("month"), t("old_water"), t("new_water"), t("room_cost"), t("water_cost"), t("total"))
+        val colWidths = floatArrayOf(85f, 70f, 60f, 55f, 55f, 70f, 70f, 70f).map { it * scale }
+        val headers = listOf(t("room"), t("floor"), t("month"), t("old_water"), t("new_water"), t("room_cost"), t("water_cost"), t("total"))
         val tableX = 50f * scale
         val rowHeight = 28f * scale
 
@@ -140,6 +140,7 @@ class UtilityPdfService(
                 // Row data
                 val rowData = listOf(
                     utility.roomName,
+                    utility.floorName,
                     utility.month.format(DateTimeFormatter.ofPattern("MM/yyyy")),
                     String.format("%.1f", utility.oldWater),
                     String.format("%.1f", utility.newWater),
@@ -221,9 +222,9 @@ class UtilityPdfService(
 
     private fun formatCurrency(amount: BigDecimal): String {
         return if (amount.stripTrailingZeros().scale() > 0) {
-            String.format("%,.2f", amount)
+            "$${String.format("%,.2f", amount)}"
         } else {
-            String.format("%,.0f", amount)
+            "$${String.format("%,.0f", amount)}"
         }
     }
 }

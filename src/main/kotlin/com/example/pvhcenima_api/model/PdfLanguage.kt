@@ -46,6 +46,10 @@ object PdfTranslations {
             PdfLanguage.EN to "Room",
             PdfLanguage.KH to "បន្ទប់"
         ),
+        "floor" to mapOf(
+            PdfLanguage.EN to "Floor",
+            PdfLanguage.KH to "ជាន់"
+        ),
         "old_water" to mapOf(
             PdfLanguage.EN to "Old Water",
             PdfLanguage.KH to "ទឹកចាស់"
