@@ -129,7 +129,7 @@ class UtilityPdfService(
             g2d.drawString(t("no_records"), (tableX + 5 * scale).toInt(), y.toInt())
             y += rowHeight
         } else {
-            utilities.sortedBy { it.month }.forEach { utility ->
+            utilities.sortedWith(compareBy({ it.floorNumber }, { it.roomName }, { it.month })).forEach { utility ->
                 val bgColor = if (utility.paid) Color(240, 255, 240) else Color(255, 240, 240)
                 val totalColor = if (utility.paid) Color(34, 139, 34) else Color(220, 20, 60)
 
